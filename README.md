@@ -1,37 +1,16 @@
 # NBA Blog
 
-## Fetching upcoming games for October 2
+This simple static site fetches the NBA's public schedule feed and highlights the games that take place on October 2. The home page displays the upcoming matchups pulled from `https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json`, and a secondary page spotlights Steph Curry.
 
-You can retrieve the games that NBA.com lists for October 2 by consuming the public schedule feed exposed at [`https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json`](https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json).
+## Getting started
 
-The payload is a large season schedule. To extract just the contests for 2 October 2025 you can run:
+1. Start a local web server from the project root, for example:
 
-```bash
-curl -s https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json \
-  | jq '.leagueSchedule.gameDates[]
-        | select(.gameDate == "10/02/2025 00:00:00")
-        | .games[]
-        | {
-            gameCode: .gameCode,
-            label: .gameLabel,
-            subLabel: .gameSubLabel,
-            homeTeam: (.homeTeam.teamCity + " " + .homeTeam.teamName),
-            awayTeam: (.awayTeam.teamCity + " " + .awayTeam.teamName),
-            tipUTC: .gameDateTimeUTC
-          }'
-```
+   ```bash
+   python -m http.server 8000
+   ```
 
-That returns structured data that mirrors the listing shown on NBA.com, for example:
+2. Open [http://localhost:8000/index.html](http://localhost:8000/index.html) to see the October 2 schedule.
+3. Use the navigation links to jump to the Steph Curry page.
 
-```
-{
-  "gameCode": "20251002/PHINYK",
-  "label": "Preseason",
-  "subLabel": "NBA Abu Dhabi Game",
-  "homeTeam": "New York Knicks",
-  "awayTeam": "Philadelphia 76ers",
-  "tipUTC": "2025-10-02T16:00:00Z"
-}
-```
-
-The schedule feed is unauthenticated and free to query, so you can integrate it into scripts or applications to display the first set of NBA games coming up on October 2.
+The schedule listing updates automatically every time the page loads, so it reflects whatever games the NBA has scheduled for that date.
