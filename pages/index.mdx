@@ -1,0 +1,201 @@
+import { useEffect, useMemo, useState } from 'react';
+
+const SCHEDULE_URL = 'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json';
+const OCTOBER_SECOND_PREFIX = '10/02/';
+
+function formatMatchup(game) {
+  const away = `${game.awayTeam.teamCity} ${game.awayTeam.teamName}`;
+  const home = `${game.homeTeam.teamCity} ${game.homeTeam.teamName}`;
+  return `${away} at ${home}`;
+}
+
+function formatTipOff(dateTimeUtc) {
+  const parsed = new Date(dateTimeUtc);
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Tip-off time TBD';
+  }
+
+  return `Tip-off: ${parsed.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })}`;
+}
+
+function useOctoberSecondGames() {
+  const [state, setState] = useState({ status: 'loading' });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadSchedule() {
+      try {
+        const response = await fetch(SCHEDULE_URL, { signal: controller.signal });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const gameDate = data?.leagueSchedule?.gameDates?.find((entry) =>
+          typeof entry?.gameDate === 'string' && entry.gameDate.startsWith(OCTOBER_SECOND_PREFIX)
+        );
+
+        if (!gameDate?.games?.length) {
+          setState({ status: 'empty' });
+          return;
+        }
+
+        setState({ status: 'ready', games: gameDate.games });
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return;
+        }
+
+        console.error('Failed to load schedule', error);
+        setState({ status: 'error' });
+      }
+    }
+
+    loadSchedule();
+
+    return () => controller.abort();
+  }, []);
+
+  return state;
+}
+
+function OctoberSecondSchedule() {
+  const state = useOctoberSecondGames();
+
+  const body = useMemo(() => {
+    switch (state.status) {
+      case 'loading':
+        return <p className="status">Loading the latest schedule…</p>;
+      case 'error':
+        return <p className="status">Unable to load the NBA schedule. Please try again later.</p>;
+      case 'empty':
+        return <p className="status">No games found for October 2 in the current schedule.</p>;
+      case 'ready':
+        return (
+          <div className="game-list">
+            {state.games.map((game) => (
+              <article key={game.gameId} className="game-card">
+                <h3>{formatMatchup(game)}</h3>
+                <p aria-label="Game type" className="game-subtitle">
+                  {[game.gameLabel, game.gameSubLabel].filter(Boolean).join(' • ')}
+                </p>
+                <p className="game-tip-off">{formatTipOff(game.gameDateTimeUTC)}</p>
+              </article>
+            ))}
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, [state]);
+
+  return <section aria-live="polite">{body}</section>;
+}
+
+export const meta = {
+  title: 'October 2 Schedule',
+  description: 'Upcoming NBA games taking place on October 2.',
+};
+
+export default function SchedulePage() {
+  return (
+    <div className="layout">
+      <header>
+        <h1>October 2 NBA Games</h1>
+        <nav>
+          <a href="/curry">Steph Curry Spotlight</a>
+        </nav>
+      </header>
+      <main>
+        <p>
+          These matchups are pulled directly from the NBA schedule feed every time you load the page, so you always
+          get the freshest information for October 2.
+        </p>
+        <OctoberSecondSchedule />
+      </main>
+    </div>
+  );
+}
+
+export function Head() {
+  return (
+    <>
+      <style>{`
+        :root {
+          color-scheme: light dark;
+          font-family: 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.5;
+        }
+
+        body {
+          margin: 0;
+          background: radial-gradient(circle at top, #0a122a, #020409 70%);
+          color: #f5f7ff;
+        }
+
+        a {
+          color: #fbd34d;
+        }
+
+        .layout {
+          min-height: 100vh;
+          padding: 2.5rem 1.5rem 3.5rem;
+          max-width: 960px;
+          margin: 0 auto;
+        }
+
+        header {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          margin-bottom: 2rem;
+        }
+
+        header nav a {
+          font-weight: 600;
+        }
+
+        main {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .game-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .game-card {
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 1.25rem;
+          box-shadow: 0 10px 25px rgba(5, 12, 40, 0.25);
+          backdrop-filter: blur(6px);
+        }
+
+        .game-card h3 {
+          margin: 0 0 0.5rem;
+          font-size: 1.15rem;
+        }
+
+        .game-subtitle,
+        .game-tip-off,
+        .status {
+          margin: 0.25rem 0;
+          color: rgba(245, 247, 255, 0.82);
+        }
+
+        .status {
+          font-style: italic;
+        }
+      `}</style>
+    </>
+  );
+}
